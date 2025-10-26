@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="es">
+<!--
+    ReportVías - Sistema de Reporte de Estado de Vías
+    
+    Funcionalidades implementadas:
+    ✓ Geolocalización en tiempo real usando Geolocation API
+    ✓ Búsqueda de lugares/direcciones con Nominatim (OpenStreetMap)
+    ✓ Botones predeterminados para selección de tipo de problema
+    ✓ Captura de foto desde cámara o galería (HTML5 MediaDevices)
+    ✓ Dictado de voz para descripción (Web Speech API)
+    ✓ Diseño responsive optimizado para dispositivos móviles
+    ✓ Almacenamiento local de reportes con fotos
+    ✓ Sistema de validación comunitaria
+    ✓ Exportación de datos en JSON
+    
+    Compatible con: Chrome, Edge, Safari, Firefox (funcionalidades pueden variar)
+    Ideal para: Android, iOS, tablets y computadores
+-->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <title>ReportVías - Sistema de Reporte de Estado de Vías</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Bootstrap CSS para componentes -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome para iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .header .subtitle {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .main-container {
+            padding: 2rem 0;
+        }
+
+        .map-container {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        #map {
+            height: 500px;
+            width: 100%;
+            position: relative;
+        }
+
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .map-control-btn {
+            background: white;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-control-btn:hover {
+            background: #667eea;
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .search-container {
+            position: absolute;
+            top: 10px;
+            left: 50px;
+            z-index: 1000;
+            max-width: 300px;
+            width: calc(100% - 100px);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 5px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-btn {
+            background: white;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .instructions {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .instructions h3 {
+            color: #333;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .instructions ul {
+            color: #666;
+            list-style: none;
+            padding: 0;
+        }
+
+        .instructions li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .instructions li:last-child {
+            border-bottom: none;
+        }
+
+        .instructions i {
+            color: #667eea;
+            width: 20px;
+        }
+
+        .reports-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .report-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #dc3545;
+            transition: all 0.3s ease;
+        }
+
+        .report-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .report-header {
+            display: flex;
+            justify-content: between;
+            align-items: flex-start;
+            margin-bottom: 0.75rem;
+        }
+
+        .report-location {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+
+        .report-time {
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .report-description {
+            color: #555;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .validation-section {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .validation-buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-validate {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .btn-veridico {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-veridico:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .btn-no-veridico {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-no-veridico:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .validation-stats {
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        .validation-stats i {
+            margin-right: 0.25rem;
+        }
+
+        /* Modal personalizado */
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .modal-body {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Marcadores personalizados */
+        .custom-marker {
+            background: #dc3545;
+            border: 3px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            display: block;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .admin-tools {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .alert-info {
+            background: rgba(13, 110, 253, 0.1);
+            border: 1px solid rgba(13, 110, 253, 0.2);
+            color: #0a58ca;
+            border-radius: 10px;
+        }
+
+        .btn-outline-primary {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline-primary:hover {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+
+        .btn-outline-danger {
+            border-color: #dc3545;
+            color: #dc3545;
+        }
+
+        .btn-outline-danger:hover {
+            background: #dc3545;
+            border-color: #dc3545;
+            color: white;
+        }
+
+        /* Estilos para botones de tipo de problema */
+        .problem-types-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        .problem-type-btn {
+            padding: 1rem;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .problem-type-btn:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .problem-type-btn.active {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .problem-type-btn i {
+            font-size: 2rem;
+        }
+
+        .problem-type-btn span {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* Estilos para captura de foto */
+        .photo-upload-container {
+            border: 2px dashed #e9ecef;
+            border-radius: 10px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .photo-upload-container:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .photo-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .photo-preview.show {
+            display: block;
+        }
+
+        /* Estilos para dictado de voz */
+        .voice-button {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .voice-button:hover {
+            background: #764ba2;
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .voice-button.recording {
+            background: #dc3545;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .description-wrapper {
+            position: relative;
+        }
+
+        .description-wrapper textarea {
+            padding-right: 55px;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                padding: 1rem;
+            }
+            
+            #map {
+                height: 400px;
+            }
+            
+            .validation-section {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .admin-tools {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .admin-tools button {
+                width: 100%;
+            }
+
+            .search-container {
+                left: 10px;
+                right: 60px;
+                max-width: none;
+                width: auto;
+            }
+
+            .problem-types-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .problem-type-btn i {
+                font-size: 1.5rem;
+            }
+
+            .problem-type-btn span {
+                font-size: 0.75rem;
+            }
+
+            .modal-body {
+                max-height: 60vh;
+            }
+
+            .description-wrapper textarea {
+                font-size: 16px; /* Evita zoom en iOS */
+            }
+
+            .search-input {
+                font-size: 16px; /* Evita zoom en iOS */
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .stat-number {
+                font-size: 1.5rem;
+            }
+
+            .photo-upload-container {
+                padding: 1rem;
+            }
+
+            .photo-upload-container i {
+                font-size: 2rem !important;
+            }
+
+            .validation-buttons {
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn-validate {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="container">
+            <div class="text-center">
+                <h1><i class="fas fa-road"></i> ReportVías</h1>
+                <p class="subtitle">Sistema Ciudadano de Reporte de Estado de Vías Públicas</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container main-container">
+        <!-- Estadísticas -->
+        <div class="stats-container">
+            <div class="stat-card">
+                <span class="stat-number" id="total-reports">0</span>
+                <div class="stat-label">Reportes Totales</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="verified-reports">0</span>
+                <div class="stat-label">Reportes Verificados</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number" id="pending-validation">0</span>
+                <div class="stat-label">Pendientes de Validación</div>
+            </div>
+        </div>
+
+        <!-- Instrucciones -->
+        <div class="instructions">
+            <h3><i class="fas fa-info-circle"></i> ¿Cómo usar el sistema?</h3>
+            <ul>
+                <li>
+                    <i class="fas fa-crosshairs"></i>
+                    <strong>Usa tu ubicación</strong> con el botón de geolocalización en el mapa
+                </li>
+                <li>
+                    <i class="fas fa-search"></i>
+                    <strong>Busca lugares</strong> escribiendo una dirección en el buscador del mapa
+                </li>
+                <li>
+                    <i class="fas fa-mouse-pointer"></i>
+                    <strong>Haz clic en el mapa</strong> donde observes un problema en la vía
+                </li>
+                <li>
+                    <i class="fas fa-tags"></i>
+                    <strong>Selecciona el tipo</strong> de problema con los botones predeterminados
+                </li>
+                <li>
+                    <i class="fas fa-microphone"></i>
+                    <strong>Dicta por voz</strong> la descripción o escríbela manualmente
+                </li>
+                <li>
+                    <i class="fas fa-camera"></i>
+                    <strong>Toma una foto</strong> del problema para mayor evidencia (opcional)
+                </li>
+                <li>
+                    <i class="fas fa-check-circle"></i>
+                    <strong>Valida reportes</strong> de otros ciudadanos para verificar su veracidad
+                </li>
+            </ul>
+        </div>
+
+        <!-- Mapa -->
+        <div class="map-container">
+            <div id="map">
+                <!-- Búsqueda de ubicación -->
+                <div class="search-container">
+                    <div class="search-box">
+                        <input type="text" class="search-input" id="locationSearch" 
+                               placeholder="Buscar dirección o lugar...">
+                        <button class="search-btn" onclick="searchLocation()">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Controles del mapa -->
+                <div class="map-controls">
+                    <button class="map-control-btn" onclick="getCurrentLocation()" 
+                            title="Mi ubicación actual">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Herramientas de Administración -->
+        <div class="reports-section">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3><i class="fas fa-list"></i> Reportes Recientes</h3>
+                <div class="admin-tools">
+                    <button class="btn btn-outline-primary btn-sm me-2" onclick="exportReportsToJSON()" title="Exportar datos a JSON">
+                        <i class="fas fa-download"></i> Exportar JSON
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="clearAllReports()" title="Limpiar todos los reportes">
+                        <i class="fas fa-trash"></i> Limpiar Todo
+                    </button>
+                </div>
+            </div>
+            <div class="alert alert-info" role="alert">
+                <i class="fas fa-info-circle"></i>
+                <strong>Almacenamiento Local:</strong> Los reportes se guardan automáticamente en tu navegador y persistirán entre sesiones.
+            </div>
+            <div id="reports-list">
+                <!-- Los reportes se cargarán dinámicamente aquí -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para crear reporte -->
+    <div class="modal fade" id="reportModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Reportar Problema en la Vía
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="reportForm">
+                        <div class="mb-3">
+                            <label for="reportLocation" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> Ubicación
+                            </label>
+                            <input type="text" class="form-control" id="reportLocation" readonly>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-tags"></i> Tipo de Problema
+                            </label>
+                            <div class="problem-types-grid">
+                                <button type="button" class="problem-type-btn" onclick="selectProblemType('baches', this)">
+                                    <i class="fas fa-road"></i>
+                                    <span>Baches</span>
+                                </button>
+                                <button type="button" class="problem-type-btn" onclick="selectProblemType('grietas', this)">
+                                    <i class="fas fa-bolt"></i>
+                                    <span>Grietas</span>
+                                </button>
+                                <button type="button" class="problem-type-btn" onclick="selectProblemType('señalizacion', this)">
+                                    <i class="fas fa-traffic-light"></i>
+                                    <span>Señalización</span>
+                                </button>
+                                <button type="button" class="problem-type-btn" onclick="selectProblemType('iluminacion', this)">
+                                    <i class="fas fa-lightbulb"></i>
+                                    <span>Iluminación</span>
+                                </button>
+                                <button type="button" class="problem-type-btn" onclick="selectProblemType('drenaje', this)">
+                                    <i class="fas fa-water"></i>
+                                    <span>Drenaje</span>
+                                </button>
+                                <button type="button" class="problem-type-btn" onclick="selectProblemType('otros', this)">
+                                    <i class="fas fa-ellipsis-h"></i>
+                                    <span>Otros</span>
+                                </button>
+                            </div>
+                            <input type="hidden" id="reportType" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="reportDescription" class="form-label">
+                                <i class="fas fa-comment"></i> Descripción del Problema
+                            </label>
+                            <div class="description-wrapper">
+                                <textarea class="form-control" id="reportDescription" rows="4" 
+                                        placeholder="Describe detalladamente el problema... o usa el botón de micrófono para dictarlo" required></textarea>
+                                <button type="button" class="voice-button" id="voiceButton" 
+                                        onclick="toggleVoiceRecording()" title="Dictado por voz">
+                                    <i class="fas fa-microphone"></i>
+                                </button>
+                            </div>
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle"></i> Haz clic en el micrófono para dictar por voz
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">
+                                <i class="fas fa-camera"></i> Foto del Problema (Opcional)
+                            </label>
+                            <div class="photo-upload-container" onclick="document.getElementById('photoInput').click()">
+                                <i class="fas fa-camera" style="font-size: 3rem; color: #667eea; margin-bottom: 0.5rem;"></i>
+                                <p class="mb-0">Toca aquí para tomar una foto o seleccionar de la galería</p>
+                                <small class="text-muted">Formato: JPG, PNG (máx. 5MB)</small>
+                            </div>
+                            <input type="file" id="photoInput" accept="image/*" capture="environment" 
+                                   style="display: none;" onchange="handlePhotoSelect(event)">
+                            <img id="photoPreview" class="photo-preview" alt="Vista previa">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                    <button type="button" class="btn btn-primary" id="submitReport">
+                        <i class="fas fa-paper-plane"></i> Enviar Reporte
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Variables globales
+        let map;
+        let reports = [];
+        let currentMarker = null;
+        let selectedCoords = null;
+        let userLocationMarker = null;
+        let currentPhoto = null;
+        let recognition = null;
+        let isRecording = false;
+
+        // Inicializar la aplicación
+        document.addEventListener('DOMContentLoaded', function() {
+            initMap();
+            loadReportsFromStorage();
+            updateStats();
+            bindEvents();
+            initVoiceRecognition();
+            
+            // Permitir búsqueda con Enter
+            document.getElementById('locationSearch').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchLocation();
+                }
+            });
+            
+            // Prevenir que los controles del mapa abran el modal de reporte
+            document.querySelector('.search-container').addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            document.querySelector('.map-controls').addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+            
+            // Mostrar mensaje de bienvenida si es la primera visita
+            showWelcomeMessage();
+        });
+
+        // Mostrar mensaje de bienvenida
+        function showWelcomeMessage() {
+            const hasVisited = localStorage.getItem('reportvias_visited');
+            if (!hasVisited) {
+                localStorage.setItem('reportvias_visited', 'true');
+                
+                // Detectar si es dispositivo móvil
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                
+                if (isMobile) {
+                    setTimeout(() => {
+                        showNotification('¡Bienvenido! Esta app funciona mejor con permisos de ubicación, cámara y micrófono activados. 📍📷🎤', 'info');
+                    }, 1000);
+                }
+            }
+        }
+
+        // Inicializar el mapa
+        function initMap() {
+            // Centrar en Cúcuta, Norte de Santander, Colombia
+            map = L.map('map').setView([7.8939, -72.5078], 13);
+
+            // Agregar capa de mapa
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Evento de clic en el mapa
+            map.on('click', function(e) {
+                showReportModal(e.latlng);
+            });
+        }
+
+        // ==================== GEOLOCALIZACIÓN ====================
+        
+        // Obtener ubicación actual del usuario
+        function getCurrentLocation() {
+            if (!navigator.geolocation) {
+                showNotification('Tu navegador no soporta geolocalización', 'error');
+                return;
+            }
+
+            const btn = event.target.closest('.map-control-btn');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // Centrar mapa en la ubicación
+                    map.setView([lat, lng], 16);
+                    
+                    // Remover marcador anterior si existe
+                    if (userLocationMarker) {
+                        map.removeLayer(userLocationMarker);
+                    }
+                    
+                    // Agregar marcador de ubicación actual
+                    userLocationMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'user-location-marker',
+                            html: '<div style="background: #4285f4; border: 3px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 0 10px rgba(66, 133, 244, 0.5);"></div>',
+                            iconSize: [20, 20]
+                        })
+                    }).addTo(map);
+                    
+                    userLocationMarker.bindPopup('Tu ubicación actual').openPopup();
+                    
+                    btn.innerHTML = '<i class="fas fa-crosshairs"></i>';
+                    showNotification('Ubicación encontrada', 'success');
+                },
+                function(error) {
+                    btn.innerHTML = '<i class="fas fa-crosshairs"></i>';
+                    let errorMsg = 'No se pudo obtener tu ubicación';
+                    
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg = 'Permiso de ubicación denegado. Por favor, permite el acceso a tu ubicación en la configuración del navegador.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg = 'Información de ubicación no disponible';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg = 'Tiempo de espera agotado al obtener ubicación';
+                            break;
+                    }
+                    
+                    showNotification(errorMsg, 'error');
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // ==================== BÚSQUEDA DE LUGARES ====================
+        
+        // Buscar ubicación usando Nominatim (OpenStreetMap)
+        async function searchLocation() {
+            const searchInput = document.getElementById('locationSearch');
+            const query = searchInput.value.trim();
+            
+            if (!query) {
+                showNotification('Por favor ingresa una dirección o lugar', 'error');
+                return;
+            }
+
+            try {
+                // Agregar "Cúcuta, Colombia" si no está incluido para mejorar resultados
+                const searchQuery = query.toLowerCase().includes('cúcuta') || query.toLowerCase().includes('cucuta') 
+                    ? query 
+                    : `${query}, Cúcuta, Colombia`;
+                
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`
+                );
+                
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    const result = data[0];
+                    const lat = parseFloat(result.lat);
+                    const lng = parseFloat(result.lon);
+                    
+                    // Centrar mapa en el resultado
+                    map.setView([lat, lng], 16);
+                    
+                    // Agregar marcador temporal
+                    const searchMarker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: 'search-result-marker',
+                            html: '<div style="background: #ffc107; border: 3px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);"></div>',
+                            iconSize: [20, 20]
+                        })
+                    }).addTo(map);
+                    
+                    searchMarker.bindPopup(`<strong>${result.display_name}</strong>`).openPopup();
+                    
+                    // Remover marcador después de 5 segundos
+                    setTimeout(() => {
+                        map.removeLayer(searchMarker);
+                    }, 5000);
+                    
+                    showNotification('Ubicación encontrada', 'success');
+                } else {
+                    showNotification('No se encontró la ubicación. Intenta con otra búsqueda.', 'error');
+                }
+            } catch (error) {
+                console.error('Error en búsqueda:', error);
+                showNotification('Error al buscar la ubicación', 'error');
+            }
+        }
+
+        // Mostrar modal para crear reporte
+        function showReportModal(latlng) {
+            selectedCoords = latlng;
+            
+            // Limpiar formulario
+            document.getElementById('reportForm').reset();
+            document.getElementById('reportLocation').value = `${latlng.lat.toFixed(6)}, ${latlng.lng.toFixed(6)}`;
+            
+            // Limpiar selección de tipo de problema
+            document.querySelectorAll('.problem-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Limpiar foto
+            currentPhoto = null;
+            document.getElementById('photoPreview').classList.remove('show');
+            document.getElementById('photoPreview').src = '';
+            
+            // Detener reconocimiento de voz si está activo
+            if (isRecording && recognition) {
+                recognition.stop();
+                isRecording = false;
+                updateVoiceButton();
+            }
+            
+            // Mostrar modal
+            const modal = new bootstrap.Modal(document.getElementById('reportModal'));
+            modal.show();
+        }
+
+        // ==================== SELECCIÓN DE TIPO DE PROBLEMA ====================
+        
+        function selectProblemType(type, button) {
+            // Remover clase active de todos los botones
+            document.querySelectorAll('.problem-type-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Agregar clase active al botón seleccionado
+            button.classList.add('active');
+            
+            // Actualizar valor del campo oculto
+            document.getElementById('reportType').value = type;
+        }
+
+        // ==================== CAPTURA DE FOTO ====================
+        
+        function handlePhotoSelect(event) {
+            const file = event.target.files[0];
+            
+            if (!file) return;
+            
+            // Validar tipo de archivo
+            if (!file.type.startsWith('image/')) {
+                showNotification('Por favor selecciona un archivo de imagen válido', 'error');
+                return;
+            }
+            
+            // Validar tamaño (5MB máximo)
+            const maxSize = 5 * 1024 * 1024; // 5MB en bytes
+            if (file.size > maxSize) {
+                showNotification('La imagen es demasiado grande. Máximo 5MB', 'error');
+                return;
+            }
+            
+            // Leer y mostrar preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentPhoto = e.target.result;
+                const preview = document.getElementById('photoPreview');
+                preview.src = currentPhoto;
+                preview.classList.add('show');
+                showNotification('Foto cargada correctamente', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ==================== DICTADO DE VOZ ====================
+        
+        function initVoiceRecognition() {
+            // Verificar soporte de Web Speech API
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'es-ES'; // Español
+                
+                recognition.onstart = function() {
+                    isRecording = true;
+                    updateVoiceButton();
+                    showNotification('Escuchando... Habla ahora', 'info');
+                };
+                
+                recognition.onresult = function(event) {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript + ' ';
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    const textarea = document.getElementById('reportDescription');
+                    if (finalTranscript) {
+                        textarea.value += finalTranscript;
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error('Error de reconocimiento de voz:', event.error);
+                    isRecording = false;
+                    updateVoiceButton();
+                    
+                    let errorMsg = 'Error en el reconocimiento de voz';
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMsg = 'No se detectó voz. Intenta de nuevo.';
+                            break;
+                        case 'audio-capture':
+                            errorMsg = 'No se pudo acceder al micrófono';
+                            break;
+                        case 'not-allowed':
+                            errorMsg = 'Permiso de micrófono denegado';
+                            break;
+                    }
+                    showNotification(errorMsg, 'error');
+                };
+                
+                recognition.onend = function() {
+                    isRecording = false;
+                    updateVoiceButton();
+                };
+            } else {
+                console.log('Web Speech API no soportada en este navegador');
+            }
+        }
+        
+        function toggleVoiceRecording() {
+            if (!recognition) {
+                showNotification('El reconocimiento de voz no está disponible en tu navegador. Intenta con Chrome o Edge.', 'error');
+                return;
+            }
+            
+            if (isRecording) {
+                recognition.stop();
+                isRecording = false;
+                updateVoiceButton();
+            } else {
+                recognition.start();
+            }
+        }
+        
+        function updateVoiceButton() {
+            const btn = document.getElementById('voiceButton');
+            if (isRecording) {
+                btn.classList.add('recording');
+                btn.innerHTML = '<i class="fas fa-stop"></i>';
+                btn.title = 'Detener dictado';
+            } else {
+                btn.classList.remove('recording');
+                btn.innerHTML = '<i class="fas fa-microphone"></i>';
+                btn.title = 'Dictado por voz';
+            }
+        }
+
+        // Vincular eventos
+        function bindEvents() {
+            document.getElementById('submitReport').addEventListener('click', function() {
+                const description = document.getElementById('reportDescription').value.trim();
+                const type = document.getElementById('reportType').value;
+                
+                if (!description || !type) {
+                    alert('Por favor completa todos los campos requeridos.');
+                    return;
+                }
+                
+                createReport(description, type);
+                
+                // Cerrar modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('reportModal'));
+                modal.hide();
+            });
+        }
+
+        // Crear nuevo reporte
+        function createReport(description, type) {
+            const now = new Date();
+            const report = {
+                id: Date.now(),
+                lat: selectedCoords.lat,
+                lng: selectedCoords.lng,
+                description: description,
+                type: type,
+                photo: currentPhoto || null, // Incluir foto si existe
+                timestamp: now, // Guardamos como objeto Date en memoria
+                validations: {
+                    veridico: 0,
+                    noVeridico: 0
+                },
+                userValidated: false
+            };
+
+            reports.push(report);
+            saveReportsToStorage();
+            addMarkerToMap(report);
+            updateReportsList();
+            updateStats();
+            
+            // Limpiar foto después de crear reporte
+            currentPhoto = null;
+            
+            // Mostrar mensaje de éxito
+            showNotification('¡Reporte creado exitosamente!', 'success');
+        }
+
+        // Agregar marcador al mapa
+        function addMarkerToMap(report) {
+            const marker = L.circleMarker([report.lat, report.lng], {
+                radius: 8,
+                fillColor: getColorByType(report.type),
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
+
+            // Popup con información del reporte
+            const popupContent = `
+                <div style="min-width: 200px; max-width: 300px;">
+                    <h6><strong>${getTypeLabel(report.type)}</strong></h6>
+                    <p style="margin: 5px 0; font-size: 0.9em;">${report.description}</p>
+                    ${report.photo ? `
+                        <img src="${report.photo}" alt="Foto del problema" 
+                             style="width: 100%; max-width: 250px; border-radius: 5px; margin-top: 10px;">
+                    ` : ''}
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        ${formatDate(report.timestamp)}
+                    </small>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent, { maxWidth: 300 });
+        }
+
+        // Obtener color por tipo de problema
+        function getColorByType(type) {
+            const colors = {
+                'baches': '#dc3545',
+                'grietas': '#fd7e14',
+                'señalizacion': '#ffc107',
+                'iluminacion': '#6f42c1',
+                'drenaje': '#20c997',
+                'otros': '#6c757d'
+            };
+            return colors[type] || '#dc3545';
+        }
+
+        // Obtener etiqueta por tipo
+        function getTypeLabel(type) {
+            const labels = {
+                'baches': 'Baches',
+                'grietas': 'Grietas en el Pavimento',
+                'señalizacion': 'Problemas de Señalización',
+                'iluminacion': 'Falta de Iluminación',
+                'drenaje': 'Problemas de Drenaje',
+                'otros': 'Otros'
+            };
+            return labels[type] || 'Problema en la Vía';
+        }
+
+        // Actualizar lista de reportes
+        function updateReportsList() {
+            const container = document.getElementById('reports-list');
+            
+            if (reports.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No hay reportes aún. ¡Sé el primero en reportar un problema!</p>';
+                return;
+            }
+
+            // Ordenar reportes por fecha (más recientes primero)
+            const sortedReports = [...reports].sort((a, b) => b.timestamp - a.timestamp);
+            
+            container.innerHTML = sortedReports.map(report => `
+                <div class="report-card" style="border-left-color: ${getColorByType(report.type)}">
+                    <div class="report-header">
+                        <div>
+                            <div class="report-location">
+                                <i class="fas fa-map-marker-alt"></i>
+                                ${getTypeLabel(report.type)}
+                            </div>
+                            <div class="report-time">
+                                <i class="fas fa-clock"></i>
+                                ${formatDate(report.timestamp)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="report-description">
+                        ${report.description}
+                    </div>
+                    ${report.photo ? `
+                        <div style="margin: 1rem 0;">
+                            <img src="${report.photo}" alt="Foto del problema" 
+                                 style="max-width: 100%; border-radius: 10px; cursor: pointer;"
+                                 onclick="window.open(this.src, '_blank')">
+                        </div>
+                    ` : ''}
+                    <div class="validation-section">
+                        <div class="validation-buttons">
+                            <button class="btn-validate btn-veridico" onclick="validateReport(${report.id}, 'veridico')" 
+                                    ${report.userValidated ? 'disabled' : ''}>
+                                <i class="fas fa-thumbs-up"></i>
+                                Verídico (${report.validations.veridico})
+                            </button>
+                            <button class="btn-validate btn-no-veridico" onclick="validateReport(${report.id}, 'noVeridico')" 
+                                    ${report.userValidated ? 'disabled' : ''}>
+                                <i class="fas fa-thumbs-down"></i>
+                                No Verídico (${report.validations.noVeridico})
+                            </button>
+                        </div>
+                        <div class="validation-stats">
+                            <i class="fas fa-users"></i>
+                            ${report.validations.veridico + report.validations.noVeridico} validaciones
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Validar reporte
+        function validateReport(reportId, validationType) {
+            const report = reports.find(r => r.id === reportId);
+            if (!report || report.userValidated) return;
+
+            report.validations[validationType]++;
+            report.userValidated = true;
+
+            saveReportsToStorage();
+            updateReportsList();
+            updateStats();
+            
+            const message = validationType === 'veridico' ? 
+                '¡Gracias por validar este reporte como verídico!' : 
+                '¡Gracias por tu validación!';
+            showNotification(message, 'info');
+        }
+
+        // Actualizar estadísticas
+        function updateStats() {
+            const total = reports.length;
+            const verified = reports.filter(r => r.validations.veridico > r.validations.noVeridico).length;
+            const pending = reports.filter(r => r.validations.veridico + r.validations.noVeridico === 0).length;
+
+            document.getElementById('total-reports').textContent = total;
+            document.getElementById('verified-reports').textContent = verified;
+            document.getElementById('pending-validation').textContent = pending;
+        }
+
+        // Funciones de almacenamiento
+        function saveReportsToStorage() {
+            try {
+                // Crear una copia de los reportes con fechas en formato ISO para almacenamiento
+                const reportsForStorage = reports.map(report => ({
+                    ...report,
+                    timestamp: report.timestamp instanceof Date ? report.timestamp.toISOString() : report.timestamp
+                }));
+                localStorage.setItem('reportvias_data', JSON.stringify(reportsForStorage));
+            } catch (error) {
+                console.error('Error al guardar datos:', error);
+            }
+        }
+
+        function loadReportsFromStorage() {
+            try {
+                const storedData = localStorage.getItem('reportvias_data');
+                if (storedData) {
+                    reports = JSON.parse(storedData);
+                    // Convertir timestamps de string a Date si es necesario
+                    reports.forEach(report => {
+                        if (typeof report.timestamp === 'string') {
+                            report.timestamp = new Date(report.timestamp);
+                        }
+                        // Verificar que la fecha sea válida
+                        if (!(report.timestamp instanceof Date) || isNaN(report.timestamp.getTime())) {
+                            report.timestamp = new Date();
+                        }
+                    });
+                } else {
+                    // Si no hay datos guardados, cargar ejemplos de Cúcuta
+                    loadSampleReports();
+                }
+                
+                // Agregar marcadores al mapa
+                reports.forEach(report => addMarkerToMap(report));
+                updateReportsList();
+                updateStats();
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                loadSampleReports();
+            }
+        }
+
+        function exportReportsToJSON() {
+            const dataStr = JSON.stringify(reports, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `reportes_vias_cucuta_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+            
+            showNotification('Datos exportados exitosamente', 'success');
+        }
+
+        function clearAllReports() {
+            if (confirm('¿Estás seguro de que deseas eliminar todos los reportes? Esta acción no se puede deshacer.')) {
+                reports = [];
+                localStorage.removeItem('reportvias_data');
+                
+                // Limpiar mapa
+                map.eachLayer(function(layer) {
+                    if (layer instanceof L.CircleMarker) {
+                        map.removeLayer(layer);
+                    }
+                });
+                
+                updateReportsList();
+                updateStats();
+                showNotification('Todos los reportes han sido eliminados', 'info');
+            }
+        }
+
+        // Cargar reportes de ejemplo de Cúcuta
+        function loadSampleReports() {
+            const sampleReports = [
+                {
+                    id: 1,
+                    lat: 7.8889,
+                    lng: -72.4967,
+                    description: "Bache profundo en la Avenida Libertadores cerca al Centro Comercial Ventura Plaza. Afecta el tráfico vehicular.",
+                    type: "baches",
+                    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
+                    validations: { veridico: 7, noVeridico: 1 },
+                    userValidated: false
+                },
+                {
+                    id: 2,
+                    lat: 7.9014,
+                    lng: -72.5081,
+                    description: "Semáforo dañado en la intersección de la Avenida Gran Colombia con Calle 10. Genera congestión vehicular.",
+                    type: "señalizacion",
+                    timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 horas atrás
+                    validations: { veridico: 4, noVeridico: 0 },
+                    userValidated: false
+                },
+                {
+                    id: 3,
+                    lat: 7.8794,
+                    lng: -72.5156,
+                    description: "Alumbrado público deficiente en el barrio San Luis. Zona peligrosa durante la noche.",
+                    type: "iluminacion",
+                    timestamp: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 día atrás
+                    validations: { veridico: 3, noVeridico: 0 },
+                    userValidated: false
+                },
+                {
+                    id: 4,
+                    lat: 7.9067,
+                    lng: -72.5189,
+                    description: "Alcantarilla tapada en la Avenida Demetrio Mendoza causa encharcamientos cuando llueve.",
+                    type: "drenaje",
+                    timestamp: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 horas atrás
+                    validations: { veridico: 2, noVeridico: 0 },
+                    userValidated: false
+                }
+            ];
+
+            reports = [...sampleReports];
+            saveReportsToStorage();
+        }
+
+        // Formatear fecha
+        function formatDate(date) {
+            // Asegurar que date es un objeto Date
+            const dateObj = date instanceof Date ? date : new Date(date);
+            
+            // Verificar si la fecha es válida
+            if (isNaN(dateObj.getTime())) {
+                return 'Fecha no válida';
+            }
+            
+            const now = new Date();
+            const diff = now - dateObj;
+            
+            if (diff < 60 * 60 * 1000) { // Menos de 1 hora
+                const minutes = Math.floor(diff / (60 * 1000));
+                return `Hace ${minutes} minuto${minutes !== 1 ? 's' : ''}`;
+            } else if (diff < 24 * 60 * 60 * 1000) { // Menos de 1 día
+                const hours = Math.floor(diff / (60 * 60 * 1000));
+                return `Hace ${hours} hora${hours !== 1 ? 's' : ''}`;
+            } else { // Más de 1 día
+                return dateObj.toLocaleDateString('es-ES', {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        }
+
+        // Mostrar notificación
+        function showNotification(message, type = 'info') {
+            // Crear elemento de notificación
+            const notification = document.createElement('div');
+            let alertClass = 'alert-info';
+            if (type === 'success') alertClass = 'alert-success';
+            if (type === 'error') alertClass = 'alert-danger';
+            
+            notification.className = `alert ${alertClass} alert-dismissible fade show`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                min-width: 300px;
+                max-width: 400px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            `;
+            
+            notification.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto-remover después de 5 segundos (más tiempo para errores)
+            const timeout = type === 'error' ? 6000 : 4000;
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, timeout);
+        }
+    </script>
+</body>
+</html>

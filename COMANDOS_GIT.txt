@@ -1,0 +1,26 @@
+=== COMANDOS PARA SUBIR A GITHUB ===
+
+PASO 1: Crear repositorio en GitHub
+- Ve a: https://github.com/new
+- Nombre: Diagnostico-Vial_Carlota
+- Descripción: Sistema de Reporte de Estado de Vías
+- Público o Privado (tu eliges)
+- NO marques "Add a README file"
+- Click en "Create repository"
+
+PASO 2: Conectar y subir (ejecuta estos comandos en la terminal de PowerShell)
+
+# Reemplaza TU_USUARIO con tu nombre de usuario de GitHub
+git remote add origin https://github.com/TU_USUARIO/Diagnostico-Vial_Carlota.git
+
+# Subir los archivos
+git push -u origin main
+
+PASO 3: Activar GitHub Pages
+- En tu repositorio en GitHub.com
+- Settings → Pages
+- Source: Branch "main"
+- Save
+
+¡Listo! Tu sitio estará en: https://TU_USUARIO.github.io/Diagnostico-Vial_Carlota/
+
