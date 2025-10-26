@@ -215,9 +215,10 @@
 
         .report-header {
             display: flex;
-            justify-content: between;
+            justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 0.75rem;
+            gap: 1rem;
         }
 
         .report-location {
@@ -292,6 +293,32 @@
         .btn-delete-report:hover {
             background: #c82333;
             transform: translateY(-1px);
+        }
+
+        .btn-locate-map {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            height: 40px;
+            box-shadow: 0 2px 5px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn-locate-map:hover {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-locate-map:active {
+            transform: translateY(0) scale(0.98);
         }
 
         .validation-stats {
@@ -852,6 +879,7 @@
         let currentPhoto = null;
         let recognition = null;
         let isRecording = false;
+        let reportMarkers = {}; // Objeto para almacenar marcadores por ID de reporte
 
         // Inicializar la aplicación
         document.addEventListener('DOMContentLoaded', function() {
@@ -1318,6 +1346,9 @@
             `;
             
             marker.bindPopup(popupContent, { maxWidth: 300 });
+            
+            // Almacenar referencia al marcador por ID del reporte
+            reportMarkers[report.id] = marker;
         }
 
         // Obtener color por tipo de problema
@@ -1361,7 +1392,7 @@
             container.innerHTML = sortedReports.map(report => `
                 <div class="report-card" style="border-left-color: ${getColorByType(report.type)}">
                     <div class="report-header">
-                        <div>
+                        <div style="flex: 1;">
                             <div class="report-location">
                                 <i class="fas fa-map-marker-alt"></i>
                                 ${getTypeLabel(report.type)}
@@ -1371,6 +1402,10 @@
                                 ${formatDate(report.timestamp)}
                             </div>
                         </div>
+                        <button class="btn-locate-map" onclick="locateReportOnMap(${report.lat}, ${report.lng}, ${report.id})" 
+                                title="Ver en el mapa">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </button>
                     </div>
                     <div class="report-description">
                         ${report.description}
@@ -1426,6 +1461,35 @@
             showNotification(message, 'info');
         }
 
+        // Localizar reporte en el mapa
+        function locateReportOnMap(lat, lng, reportId) {
+            // Centrar mapa en el reporte con zoom apropiado
+            map.setView([lat, lng], 17, {
+                animate: true,
+                duration: 1
+            });
+
+            // Buscar y abrir el popup del marcador
+            const marker = reportMarkers[reportId];
+            if (marker) {
+                // Pequeño delay para que la animación del mapa se complete
+                setTimeout(() => {
+                    marker.openPopup();
+                }, 500);
+            }
+
+            // Scroll suave hacia el mapa
+            const mapElement = document.getElementById('map');
+            if (mapElement) {
+                mapElement.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center' 
+                });
+            }
+
+            showNotification('Ubicando reporte en el mapa...', 'info');
+        }
+
         // Eliminar reporte individual
         function deleteReport(reportId) {
             if (!confirm('¿Estás seguro de que deseas eliminar este reporte? Esta acción no se puede deshacer.')) {
@@ -1445,6 +1509,9 @@
             // Actualizar la UI
             updateReportsList();
             updateStats();
+
+            // Limpiar objeto de marcadores
+            reportMarkers = {};
 
             // Recargar marcadores del mapa (forma simple: limpiar y redibujar todos)
             // Limpiar marcadores de reportes del mapa
