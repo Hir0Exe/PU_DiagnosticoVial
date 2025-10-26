@@ -242,6 +242,7 @@
             gap: 0.75rem;
             align-items: center;
             flex-wrap: wrap;
+            position: relative;
         }
 
         .validation-buttons {
@@ -278,6 +279,17 @@
         }
 
         .btn-no-veridico:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+
+        .btn-delete-report {
+            background: #dc3545;
+            color: white;
+            margin-left: auto;
+        }
+
+        .btn-delete-report:hover {
             background: #c82333;
             transform: translateY(-1px);
         }
@@ -600,6 +612,12 @@
 
             .btn-validate {
                 width: 100%;
+            }
+
+            .btn-delete-report {
+                width: 100%;
+                margin-left: 0;
+                margin-top: 0.5rem;
             }
         }
     </style>
@@ -1381,6 +1399,10 @@
                             <i class="fas fa-users"></i>
                             ${report.validations.veridico + report.validations.noVeridico} validaciones
                         </div>
+                        <button class="btn-validate btn-delete-report" onclick="deleteReport(${report.id})" 
+                                title="Eliminar este reporte">
+                            <i class="fas fa-trash"></i>
+                        </button>
                     </div>
                 </div>
             `).join('');
@@ -1402,6 +1424,40 @@
                 '¡Gracias por validar este reporte como verídico!' : 
                 '¡Gracias por tu validación!';
             showNotification(message, 'info');
+        }
+
+        // Eliminar reporte individual
+        function deleteReport(reportId) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este reporte? Esta acción no se puede deshacer.')) {
+                return;
+            }
+
+            // Encontrar el índice del reporte
+            const reportIndex = reports.findIndex(r => r.id === reportId);
+            if (reportIndex === -1) return;
+
+            // Remover del array
+            reports.splice(reportIndex, 1);
+
+            // Guardar cambios
+            saveReportsToStorage();
+
+            // Actualizar la UI
+            updateReportsList();
+            updateStats();
+
+            // Recargar marcadores del mapa (forma simple: limpiar y redibujar todos)
+            // Limpiar marcadores de reportes del mapa
+            map.eachLayer(function(layer) {
+                if (layer instanceof L.CircleMarker) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            // Redibujar todos los marcadores restantes
+            reports.forEach(report => addMarkerToMap(report));
+
+            showNotification('Reporte eliminado correctamente', 'success');
         }
 
         // Actualizar estadísticas
