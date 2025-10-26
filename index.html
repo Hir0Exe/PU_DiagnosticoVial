@@ -796,7 +796,13 @@
                             </div>
                             <input type="file" id="photoInput" accept="image/*" capture="environment" 
                                    style="display: none;" onchange="handlePhotoSelect(event)">
-                            <img id="photoPreview" class="photo-preview" alt="Vista previa">
+                            <div style="position: relative; display: inline-block; width: 100%;">
+                                <img id="photoPreview" class="photo-preview" alt="Vista previa">
+                                <button type="button" id="removePhotoBtn" onclick="removePhoto()" 
+                                        style="display: none; position: absolute; top: 10px; right: 10px; background: #dc3545; color: white; border: none; border-radius: 50%; width: 35px; height: 35px; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 10;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -924,7 +930,19 @@
                         })
                     }).addTo(map);
                     
-                    userLocationMarker.bindPopup('Tu ubicación actual').openPopup();
+                    // Popup con opción de reportar en esta ubicación
+                    const popupContent = `
+                        <div style="text-align: center;">
+                            <strong>📍 Tu ubicación actual</strong>
+                            <br>
+                            <button onclick="reportAtCurrentLocation(${lat}, ${lng})" 
+                                    style="margin-top: 10px; padding: 8px 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 20px; cursor: pointer; font-weight: 600;">
+                                <i class="fas fa-exclamation-triangle"></i> Reportar aquí
+                            </button>
+                        </div>
+                    `;
+                    
+                    userLocationMarker.bindPopup(popupContent).openPopup();
                     
                     btn.innerHTML = '<i class="fas fa-crosshairs"></i>';
                     showNotification('Ubicación encontrada', 'success');
@@ -1013,6 +1031,11 @@
             }
         }
 
+        // Función para reportar en la ubicación actual
+        function reportAtCurrentLocation(lat, lng) {
+            showReportModal({ lat: lat, lng: lng });
+        }
+
         // Mostrar modal para crear reporte
         function showReportModal(latlng) {
             selectedCoords = latlng;
@@ -1030,6 +1053,8 @@
             currentPhoto = null;
             document.getElementById('photoPreview').classList.remove('show');
             document.getElementById('photoPreview').src = '';
+            document.getElementById('photoInput').value = '';
+            document.getElementById('removePhotoBtn').style.display = 'none';
             
             // Detener reconocimiento de voz si está activo
             if (isRecording && recognition) {
@@ -1085,9 +1110,23 @@
                 const preview = document.getElementById('photoPreview');
                 preview.src = currentPhoto;
                 preview.classList.add('show');
-                showNotification('Foto cargada correctamente', 'success');
+                
+                // Mostrar botón de eliminar foto
+                document.getElementById('removePhotoBtn').style.display = 'block';
+                
+                showNotification('Foto cargada correctamente. Puedes eliminarla con el botón ✕', 'success');
             };
             reader.readAsDataURL(file);
+        }
+
+        // Función para eliminar la foto seleccionada
+        function removePhoto() {
+            currentPhoto = null;
+            document.getElementById('photoPreview').classList.remove('show');
+            document.getElementById('photoPreview').src = '';
+            document.getElementById('photoInput').value = '';
+            document.getElementById('removePhotoBtn').style.display = 'none';
+            showNotification('Foto eliminada. Puedes seleccionar otra', 'info');
         }
 
         // ==================== DICTADO DE VOZ ====================
